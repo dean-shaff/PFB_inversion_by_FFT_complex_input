@@ -53,10 +53,12 @@ fid_in = fopen(fname_in);
 % Open files for writing
 for i = 1 : L
     fid_out(i) = fopen(strcat(fname_out,int2str(i),'.dump'), 'w');
-end;
-
+end
+fid_out_all = fopen(strcat(fname_out, 'all', '.dump'),'w');
+fwrite(fid_out_all, char('0'*zeros(4096, 1)), 'char');
 % Initialise output
-y2 = zeros(L,Nin/M);
+dat_out_per_chan_len = floor((Nin-(L*ceil(length(h)/L)))/M);
+y_out = zeros(L,2*dat_out_per_chan_len*Nblocks);
 
 
 %===============
@@ -82,23 +84,26 @@ for ii = 1 : Nblocks
     % Evaluate the channel outputs
     % out=polyphase_analysis(in,filt,block,step)
     out = polyphase_analysis(Vdat,h,L,M);
-    out(14, :)'.*L
+    % out(14, :)'.*L
     %Write each output channel's samples to its own file
+    s = (ii - 1) * dat_out_per_chan_len * 2 + 1;
+    e = ii * dat_out_per_chan_len * 2;
     for i = 1 : L
         % Interleave real/imag, selecting the particular channel
         yy = out(:,i).*L;
         z = [real(yy), imag(yy)];
-        dat = reshape(transpose(z),2*floor((Nin-(L*ceil(length(h)/L)))/M),1);
+        dat = reshape(transpose(z),2*dat_out_per_chan_len,1);
+        y_out(i,s:e) = dat;
         fwrite(fid_out(i), dat, 'single');
     end;
-
-
 end;
 
 fclose(fid_in);
 for i = 1 : L
     fclose(fid_out(i));
 end;
+fwrite(fid_out_all, reshape(y_out, L*2*dat_out_per_chan_len*Nblocks, 1),'single');
+fclose(fid_out_all)
 
 return
 end

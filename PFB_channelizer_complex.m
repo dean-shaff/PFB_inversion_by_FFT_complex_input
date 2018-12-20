@@ -38,7 +38,8 @@ if pfb_type == 0,
 else
     OS = OS_Nu/OS_De;
     M = (L*OS_De)/OS_Nu;
-end;
+end
+
 L_M = L - M; % Overlap
 
 % PFB prototype filter coefficients file name
@@ -53,10 +54,13 @@ fid_in = fopen(fname_in);
 for i = 1 : L
     fid_out(i) = fopen(strcat(fname_out,int2str(i),'.dump'), 'w');
 end;
+fid_out_all = fopen(strcat(fname_out, 'all', '.dump'),'w');
+fwrite(fid_out_all, char('0'*zeros(4096, 1)), 'char');
 
 % Initialise output
 y2 = zeros(L,Nin/M);
-
+dat_out_per_chan_len = Nin/M;
+y_out = zeros(L,2*dat_out_per_chan_len*Nblocks);
 
 %===============
 % Main loop
@@ -88,11 +92,14 @@ for ii = 1 : Nblocks
     end;
     % y2(:, 14)
     %Write each output channel's samples to its own file
+    s = (ii - 1) * dat_out_per_chan_len * 2 + 1;
+    e = ii * dat_out_per_chan_len * 2;
     for i = 1 : L
         % Interleave real/imag, selecting the particular channel
         yy = y2(i,:);
         z = [real(transpose(yy)), imag(transpose(yy))];
         dat = reshape(transpose(z),2*Nin/M,1);
+        y_out(i,s:e) = dat;
         fwrite(fid_out(i), dat, 'single');
     end;
 
@@ -102,6 +109,8 @@ fclose(fid_in);
 for i = 1 : L
     fclose(fid_out(i));
 end;
+fwrite(fid_out_all, reshape(y_out, L*2*dat_out_per_chan_len*Nblocks, 1),'single');
+fclose(fid_out_all);
 
 return
 end
@@ -169,6 +178,8 @@ xM(1,1:L) = fliplr(x);%Note the Flip (Left-Right) place the Newest sample
 
 % FFT stage - complex case
 y = L*L/2*ifft(yP);
+% y = ifft(yP);
+% y = fft(yP);
 
 %Changing the Control Index
 n = n+1;
@@ -264,6 +275,8 @@ end;
 
 % FFT stage - complex case
 y = L*L*ifft(y1S);
+% y = L*ifft(y1S);
+% y = fft(y1S);
 
 
 %Changing the Control Index

@@ -22,19 +22,18 @@ len = length(FFFF);
 
 save('N_channels','FFFF');
 
-figure;%set(gcf,'Visible', 'off');
+figure;set(gcf,'Visible', 'off');
 subplot(211); plot((1:len),abs(FFFF)); box on; grid on; title('FFFF Mag');
 subplot(212); plot((1:len),angle(FFFF)); box on; grid on; title('FFFF Phase'); xlabel('time');
 
 % back transform
 z1 = (ifft((FFFF), len))./(OS_Nu/OS_De);  % re-scale by OS factor
-length(z1)
-len
-figure;%set(gcf,'Visible', 'off');
+save('inverse_PFB', 'z1');
+figure;set(gcf,'Visible', 'off');
 subplot(211); plot((1:len),real(z1(1:len))); box on; grid on; title('z1 Real');
 subplot(212); plot((1:len),imag(z1(1:len))); box on; grid on; title('z1 Imag'); xlabel('time');
 
-figure;%set(gcf,'Visible', 'off');
+figure;set(gcf,'Visible', 'off');
 subplot(211); plot((1:len),10.0*log10(abs(real(z1(1:len)))+1e-12)); box on; grid on; title('z1 Real - Log scale');
 axis([1 len -100 10]);
 subplot(212); plot((1:len),10.0*log10(abs(imag(z1(1:len)))+1e-12)); box on; grid on; title('z1 Imag - Log scale'); xlabel('time');
@@ -60,10 +59,22 @@ Vdat = complex(Vstream(1,:), Vstream(2,:));
 length(Vstream)
 
 figure;%set(gcf,'Visible', 'off');
-subplot(211); plot((1:Nin),real(Vdat(1,1:Nin))); box on; grid on;
-title('Vin Real');
-subplot(212); plot((1:Nin),imag(Vdat(1,1:Nin))); box on; grid on;
-title('Vin Imag'); xlabel('time');
+% subplot(211); plot((1:Nin),real(Vdat(1,1:Nin))); box on; grid on;
+% title('Vin Real');
+% subplot(212); plot((1:Nin),imag(Vdat(1,1:Nin))); box on; grid on;
+% title('Vin Imag'); xlabel('time');
+
+subplot(311); plot((1:len), real(Vdat(1,1:len)), (1:len), real(z1(1:len))); box on; grid on;
+legend({'Vin Real', 'z1 Real'}); title('Vin Real vs z1 Real');
+subplot(312); plot((1:len), imag(Vdat(1,1:len)), (1:len), imag(z1(1:len))); box on; grid on;
+legend({'Vin Imag', 'z1 Imag'}); title('Vin Imag vs z1 Imag'); xlabel('time');
+
+cross_corr_real = xcorr(real(Vdat(1, 1:len)), real(z1(1:len)));
+cross_corr_imag = xcorr(imag(Vdat(1, 1:len)), imag(z1(1:len)));
+len_cross_corr = length(cross_corr_real);
+
+subplot(313); plot((1:len_cross_corr), cross_corr_real, (1:len_cross_corr), cross_corr_imag); box on; grid on;
+legend({'xcorr Real', 'xcorr Imag'}); title('Vin vs z1 cross correlation');
 
 % Time domain comparison with original input - good for integer sample
 % delays when those delays have been sync'd out
@@ -72,10 +83,12 @@ if (1)
     centre_z1 = centre_Vdat + compare_offset;
 
     plot_range = 25;
-    figure; %set(gcf,'Visible', 'off');
+    figure; set(gcf,'Visible', 'off');
+
     t_plot = (-plot_range+1:plot_range);
     z1_plot = z1(centre_z1-plot_range+1:centre_z1+plot_range);
     Vdat_plot = Vdat(1,centre_Vdat-plot_range+1:centre_Vdat+plot_range);
+
     subplot(311); plot(t_plot,...
       real(z1_plot),...
       t_plot,...
@@ -111,21 +124,29 @@ end;
 % sample delays to avoid the need for interpolation of the input time series
 if (1)
     Vdat_shift = Vdat(1,1-compare_offset:len-compare_offset);
-    VDAT = fft(Vdat_shift);
-%     figure;
-%     subplot(211); plot((1:len),abs(VDAT)); box on; grid on; title('VDAT Mag');
-%     subplot(212); plot((1:len),angle(VDAT)); box on; grid on; title('VDAT Phase'); xlabel('time');
+    % VDAT = fft(Vdat_shift);
+    fft_Vdat = fft(Vdat(1:len));
+
+    figure;
+    subplot(211); plot((1:len),abs(fft_Vdat), (1:len), abs(FFFF));
+      xlim([-100, len]);
+      set(gca, 'YScale', 'log');
+      legend({'Mag FFT Vdat', 'Mag FFFF'});
+      box on; grid on; title('FFT Vdat vs FFFF magnitude');
+    subplot(212); plot((1:len),angle(fft_Vdat), (1:len), angle(FFFF));
+      legend({'Phase FFT Vdat', 'Phase FFFF'});
+      box on; grid on; title('FFT Vdat vs FFFF phase'); %xlabel('time');
 
     % cross-power spectrum of FFFF and a similar length VDAT
-    CP = FFFF.*transpose(conj(VDAT));
-    figure;%set(gcf,'Visible', 'off');
-    subplot(211); plot((1:len),abs(CP),'Linewidth',2);
-    box on; grid on; title('Cross-Power Mag'); set(gca, 'YScale', 'log')
-    subplot(212); plot((1:len),angle(CP),'Linewidth',2);
-    box on; grid on; title('Cross-Power Phase'); xlabel('time');
+    % CP = FFFF.*transpose(conj(VDAT));
+    % figure;%set(gcf,'Visible', 'off');
+    % subplot(211); plot((1:len),abs(CP),'Linewidth',2);
+    % box on; grid on; title('Cross-Power Mag'); set(gca, 'YScale', 'log')
+    % subplot(212); plot((1:len),angle(CP),'Linewidth',2);
+    % box on; grid on; title('Cross-Power Phase'); xlabel('time');
 
     % sum the total cross-power magnitude
-    total_cp = sum(abs(CP))
+    % total_cp = sum(abs(CP))
 
   end;
 
